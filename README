@@ -1,0 +1,29 @@
+代码是死的，人是活的。
+
+本源码只是为了添加对华录设备的支持，基于openwrt chaos calmer 
+
+编译openwrt 没啥好说的 百度上一堆教程
+1.安装好系统 Linux 理论上都可以deepin、uos、Ubuntu等均可。
+
+2.拉取源码
+git clone https://gitee.com/uosbox/hualu.git
+
+3.进入源码根目录
+cd hualu
+
+4.建立扩展索引
+./scripts/feeds update -i
+
+5.安装扩展包
+./scripts/feeds install -a
+
+6. 进入制定固件的菜单界面 开始制定固件
+make menuconfig
+
+7.开始编译
+make
+
+遇到错误先百度，百度不到才进群问群友
+没有任何义务解答你的问题，请不要觉得自己是大爷。
+虚心请教得拿出该有的姿态，话虽不中听但还是得说。
+QQ群：1042328757 备注gitee

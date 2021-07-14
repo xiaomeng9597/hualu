@@ -1,0 +1,52 @@
+--- a/drivers/mtd/devices/m25p80.c
++++ b/drivers/mtd/devices/m25p80.c
+@@ -29,6 +29,8 @@
+ #include <linux/mtd/spi-nor.h>
+ 
+ #define	MAX_CMD_SIZE		6
++/* Used for Winbond flashes only. */
++#define OPCODE_WINBOND_ID    0x4b    /* Get flash unique id */
+ struct m25p {
+ 	struct spi_device	*spi;
+ 	struct spi_nor		spi_nor;
+@@ -282,6 +284,22 @@
+ 	return 0;
+ }
+ 
++/* flash unique id probe */
++static int unique_id_prob(struct spi_device *spi, u8 *id)
++{
++    int			tmp;
++    u8			code[5];
++
++    code[0] = OPCODE_WINBOND_ID;
++    tmp = spi_write_then_read(spi, &code, 5, id, 8);
++    if (tmp < 0) {
++        pr_debug("%s: error %d reading UNIQUE ID\n",
++                dev_name(&spi->dev), tmp);
++        return tmp;
++    }
++    return 0;
++}
++
+ /*
+  * board specific setup should have ensured the SPI clock used here
+  * matches what the READ command supports, at least until this driver
+@@ -300,6 +318,17 @@
+ 
+ 	data = dev_get_platdata(&spi->dev);
+ 
++    /* show unique id in kernel debug log for w25q64 or w25q128. */
++
++        u8 unique_id[8];
++        if(!unique_id_prob(spi, unique_id)) {
++            dev_warn(&spi->dev, "KOS_id=%02x%02x%02x%02x%02x%02x%02x%02x\n",
++                    unique_id[7], unique_id[6], unique_id[5], unique_id[4],
++                    unique_id[3], unique_id[2], unique_id[1], unique_id[0]);
++        } else {
++            dev_warn(&spi->dev, "not Kid.\n");
++        }
++
+ 	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
+ 	if (!flash)
+ 		return -ENOMEM;

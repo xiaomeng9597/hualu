@@ -1,0 +1,12 @@
+--- a/squashfs-tools/squashfs_fs.h
++++ b/squashfs-tools/squashfs_fs.h
+@@ -27,6 +27,6 @@
+ #define SQUASHFS_MAJOR			4
+ #define SQUASHFS_MINOR			0
+-#define SQUASHFS_MAGIC			0x73717368
+-#define SQUASHFS_MAGIC_SWAP		0x68737173
++#define SQUASHFS_MAGIC			0x74696e69
++#define SQUASHFS_MAGIC_SWAP		0x696e6974
+ #define SQUASHFS_START			0
+ 
+ /* size of metadata (inode and directory) blocks */

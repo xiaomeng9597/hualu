@@ -1,0 +1,42 @@
+--- a/libblkid/src/superblocks/squashfs.c
++++ b/libblkid/src/superblocks/squashfs.c
+@@ -58,7 +58,7 @@
+ 	if (!sq)
+ 		return errno ? -errno : 1;
+ 
+-	if (strcmp(mag->magic, "sqsh") == 0) {
++	if (strcmp(mag->magic, "tini") == 0) {
+ 		major = be16_to_cpu(sq->s_major);
+ 		minor = be16_to_cpu(sq->s_minor);
+ 	} else {
+@@ -81,7 +81,7 @@
+ 	.probefunc	= probe_squashfs,
+ 	.magics		=
+ 	{
+-		{ .magic = "hsqs", .len = 4 },
++		{ .magic = "init", .len = 4 },
+ 		{ NULL }
+ 	}
+ };
+@@ -93,8 +93,8 @@
+ 	.probefunc	= probe_squashfs3,
+ 	.magics		=
+ 	{
+-		{ .magic = "sqsh", .len = 4 }, /* big endian */
+-		{ .magic = "hsqs", .len = 4 }, /* little endian */
++		{ .magic = "tini", .len = 4 }, /* big endian */
++		{ .magic = "init", .len = 4 }, /* little endian */
+ 		{ NULL }
+ 	}
+ };
+--- a/include/statfs_magic.h
++++ b/include/statfs_magic.h
+@@ -84,7 +84,7 @@
+ #define STATFS_SMACKFS_MAGIC	0x43415d53
+ #define STATFS_SMB_MAGIC	0x517B
+ #define STATFS_SOCKFS_MAGIC	0x534F434B
+-#define STATFS_SQUASHFS_MAGIC	0x73717368
++#define STATFS_SQUASHFS_MAGIC	0x74696e69
+ #define STATFS_SYSFS_MAGIC	0x62656572
+ #define STATFS_TMPFS_MAGIC	0x01021994
+ #define STATFS_UBIFS_MAGIC	0x24051905

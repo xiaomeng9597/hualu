@@ -1,0 +1,15 @@
+#!/bin/sh
+getip="$(wget -qO- -T5 -t5 -4 --no-check-certificate --post-data="host=raw.githubusercontent.com" https://www.ipaddress.com/ip-lookup -Uuosbox|grep -Eo '<a href="https://www.ipaddress.com/ipv4/\<[0-9]*(\.[0-9]*){3}\>'|awk -F'/' '{print $5;exit}')"
+
+tracklist="$(wget -qO- -T5 -t5 -4 --no-check-certificate --header="host:raw.githubusercontent.com" https://$getip/ngosang/trackerslist/master/trackers_all.txt|awk '$1~/^wss:|^http:|^https:|^udp:/{print "\tlist bt_tracker \047"$0"\047"}')"
+ts="$(echo "$tracklist"|wc -l)"
+tz="失败！"
+[ "$tracklist" ]&&{
+uci -q set aria2.main.bt_tracker=""
+uci -q commit aria2
+echo "$tracklist" >>/etc/config/aria2
+[ "$(uci -q get aria2.main.enabled)" = "1" ]&&/etc/init.d/aria2 restart
+tz="成功！"
+}
+date +"时间：%F %T，更新条数：$ts，$tz" >>/etc/uptacks
+[ "$(cat /etc/uptacks|wc -l)" -ge "10" ]&&sed -i '1d' /etc/uptacks

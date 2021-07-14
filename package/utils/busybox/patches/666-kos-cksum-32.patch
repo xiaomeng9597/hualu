@@ -1,0 +1,12 @@
+--- a/coreutils/cksum.c
++++ b/coreutils/cksum.c
+@@ -63,8 +63,7 @@
+ 		}
+ 		crc = ~crc;
+ 
+-		printf((*argv ? "%"PRIu32" %"OFF_FMT"i %s\n" : "%"PRIu32" %"OFF_FMT"i\n"),
+-				crc, filesize, *argv);
++        printf("%x\n",(unsigned)crc);
+ 	} while (*argv && *++argv);
+ 
+ 	fflush_stdout_and_exit(exit_code);

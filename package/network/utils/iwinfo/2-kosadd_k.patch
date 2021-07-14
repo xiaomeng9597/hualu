@@ -1,0 +1,48 @@
+--- a/iwinfo_cli.c	2018-06-13 23:41:42.793956000 +0800
++++ b/iwinfo_cli.c	2018-06-14 00:00:36.280198140 +0800
+@@ -609,6 +609,34 @@
+ }
+ 
+ 
++static void print_macssidlist(const struct iwinfo_ops *iw, const char *ifname)
++{
++	int i, x, len;
++	char buf[IWINFO_BUFSIZE];
++	struct iwinfo_scanlist_entry *e;
++
++	if (iw->scanlist(ifname, buf, &len))
++	{
++		printf("Scanning not possible\n\n");
++		return;
++	}
++	else if (len <= 0)
++	{
++		printf("No scan results\n\n");
++		return;
++	}
++
++	for (i = 0, x = 1; i < len; i += sizeof(struct iwinfo_scanlist_entry), x++)
++	{
++		e = (struct iwinfo_scanlist_entry *) &buf[i];
++
++		printf("%s \"%s\"\n",
++			format_ssid(e->ssid),
++			format_bssid(e->mac));
++	}
++}
++
++
+ static void print_txpwrlist(const struct iwinfo_ops *iw, const char *ifname)
+ {
+ 	int len, pwr, off, i;
+@@ -886,6 +914,10 @@
+ 					print_scanlist(iw, argv[1]);
+ 					break;
+ 
++				case 'k':
++					print_macssidlist(iw, argv[1]);
++					break;
++
+ 				case 't':
+ 					print_txpwrlist(iw, argv[1]);
+ 					break;

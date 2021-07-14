@@ -1,0 +1,388 @@
+diff -uNr a/include/n2n_define.h b/include/n2n_define.h
+--- a/include/n2n_define.h	2020-08-12 18:18:14.000000000 +0800
++++ b/include/n2n_define.h	2020-10-05 21:24:08.210933793 +0800
+@@ -78,9 +78,9 @@
+ 
+ #define DEFAULT_MTU   1290
+ 
+-#define HASH_ADD_PEER(head,add)				\
++#define HASH_ADD_MAC(head,add)				\
+   HASH_ADD(hh,head,mac_addr,sizeof(n2n_mac_t),add)
+-#define HASH_FIND_PEER(head,mac,out)		\
++#define HASH_FIND_MAC(head,mac,out)		\
+   HASH_FIND(hh,head,mac,sizeof(n2n_mac_t),out)
+ #define N2N_EDGE_SN_HOST_SIZE   48
+ #define N2N_EDGE_NUM_SUPERNODES 2
+diff -uNr a/include/n2n.h b/include/n2n.h
+--- a/include/n2n.h	2020-08-12 18:18:14.000000000 +0800
++++ b/include/n2n.h	2020-10-05 21:22:52.902599830 +0800
+@@ -205,6 +205,14 @@
+   UT_hash_handle hh; /* makes this structure hashable */
+ };
+ 
++typedef struct mac_info {
++  n2n_mac_t           mac_addr;
++  struct peer_info    *peer;
++  time_t              last_seen;
++
++  UT_hash_handle hh; /* makes this structure hashable */
++} mac_info_t;
++
+ typedef struct speck_context_t he_context_t;
+ typedef char n2n_sn_name_t[N2N_EDGE_SN_HOST_SIZE];
+ 
+@@ -360,6 +368,7 @@
+   he_context_t        *header_encryption_ctx; /* Header encryption cipher context. */
+   he_context_t        *header_iv_ctx;	      /* Header IV ecnryption cipher context, REMOVE as soon as seperate fields for checksum and replay protection available */
+   struct peer_info *edges; 		      /* Link list of registered edges. */
++  struct mac_info *macs;            /* Link list of known MAC addresses. */
+   int64_t	      number_enc_packets;     /* Number of encrypted packets handled so far, required for sorting from time to time */
+ 
+   UT_hash_handle hh; /* makes this structure hashable */
+@@ -452,6 +461,7 @@
+                         time_t purge_before );
+ size_t clear_peer_list( struct peer_info ** peer_list );
+ size_t purge_expired_registrations( struct peer_info ** peer_list, time_t* p_last_purge );
++size_t purge_expired_macs(struct mac_info ** macs, time_t* p_last_purge);
+ 
+ /* Edge conf */
+ void edge_init_conf_defaults(n2n_edge_conf_t *conf);
+diff -uNr a/src/edge_utils.c b/src/edge_utils.c
+--- a/src/edge_utils.c	2020-08-12 18:18:14.000000000 +0800
++++ b/src/edge_utils.c	2020-10-05 22:22:55.617636575 +0800
+@@ -275,7 +275,7 @@
+ static int find_and_remove_peer(struct peer_info **head, const n2n_mac_t mac) {
+   struct peer_info *peer;
+ 
+-  HASH_FIND_PEER(*head, mac, peer);
++  HASH_FIND_MAC(*head, mac, peer);
+   if(peer) {
+     HASH_DEL(*head, peer);
+     free(peer);
+@@ -400,9 +400,9 @@
+   } else {
+     // from (peer) edge
+     struct peer_info *peer;
+-    HASH_FIND_PEER(eee->pending_peers, mac, peer);
++    HASH_FIND_MAC(eee->pending_peers, mac, peer);
+     if(!peer) {
+-      HASH_FIND_PEER(eee->known_peers, mac, peer);
++      HASH_FIND_MAC(eee->known_peers, mac, peer);
+     }
+     if(peer) {
+       // time_stamp_verify_and_update allows the pointer a previous stamp to be NULL
+@@ -458,7 +458,7 @@
+   macstr_t mac_buf;
+   n2n_sock_str_t sockbuf;
+ 
+-  HASH_FIND_PEER(eee->pending_peers, mac, scan);
++  HASH_FIND_MAC(eee->pending_peers, mac, scan);
+ 
+   /* NOTE: pending_peers are purged periodically with purge_expired_registrations */
+   if(scan == NULL) {
+@@ -470,7 +470,7 @@
+     scan->last_seen = time(NULL); /* Don't change this it marks the pending peer for removal. */
+     scan->last_valid_time_stamp = initial_time_stamp ();
+ 
+-    HASH_ADD_PEER(eee->pending_peers, scan);
++    HASH_ADD_MAC(eee->pending_peers, scan);
+ 
+     traceEvent(TRACE_DEBUG, "=== new pending %s -> %s",
+ 	       macaddr_str(mac_buf, scan->mac_addr),
+@@ -533,7 +533,7 @@
+ 					   const n2n_sock_t * peer) {
+   struct peer_info *scan;
+ 
+-  HASH_FIND_PEER(eee->known_peers, mac, scan);
++  HASH_FIND_MAC(eee->known_peers, mac, scan);
+ 
+   if(scan == NULL) {
+     /* Not in known_peers - start the REGISTER process. */
+@@ -566,13 +566,13 @@
+   macstr_t mac_buf;
+   n2n_sock_str_t sockbuf;
+ 
+-  HASH_FIND_PEER(eee->pending_peers, mac, scan);
++  HASH_FIND_MAC(eee->pending_peers, mac, scan);
+ 
+   if(scan) {
+     HASH_DEL(eee->pending_peers, scan);
+ 
+     /* Add scan to known_peers. */
+-    HASH_ADD_PEER(eee->known_peers, scan);
++    HASH_ADD_MAC(eee->known_peers, scan);
+ 
+     scan->sock = *peer;
+     scan->last_p2p = now;
+@@ -650,7 +650,7 @@
+     return;
+ 
+   /* Search the peer in known_peers */
+-  HASH_FIND_PEER(eee->known_peers, mac, scan);
++  HASH_FIND_MAC(eee->known_peers, mac, scan);
+ 
+   if(!scan)
+     /* Not in known_peers */
+@@ -1274,7 +1274,7 @@
+ static int check_query_peer_info(n2n_edge_t *eee, time_t now, n2n_mac_t mac) {
+   struct peer_info *scan;
+ 
+-  HASH_FIND_PEER(eee->pending_peers, mac, scan);
++  HASH_FIND_MAC(eee->pending_peers, mac, scan);
+ 
+   if(!scan) {
+     scan = calloc(1, sizeof(struct peer_info));
+@@ -1284,7 +1284,7 @@
+     scan->last_seen = now; /* Don't change this it marks the pending peer for removal. */
+     scan->last_valid_time_stamp = initial_time_stamp ();
+ 
+-    HASH_ADD_PEER(eee->pending_peers, scan);
++    HASH_ADD_MAC(eee->pending_peers, scan);
+   }
+ 
+   if(now - scan->last_sent_query > REGISTER_SUPER_INTERVAL_DFL) {
+@@ -1318,7 +1318,7 @@
+ 	     mac_address[0] & 0xFF, mac_address[1] & 0xFF, mac_address[2] & 0xFF,
+ 	     mac_address[3] & 0xFF, mac_address[4] & 0xFF, mac_address[5] & 0xFF);
+ 
+-  HASH_FIND_PEER(eee->known_peers, mac_address, scan);
++  HASH_FIND_MAC(eee->known_peers, mac_address, scan);
+ 
+   if(scan && (scan->last_seen > 0)) {
+     if((now - scan->last_p2p) >= (scan->timeout / 2)) {
+@@ -1876,7 +1876,7 @@
+           break;
+         }
+ 
+-	  HASH_FIND_PEER(eee->pending_peers, pi.mac, scan);
++	  HASH_FIND_MAC(eee->pending_peers, pi.mac, scan);
+ 	  if(scan) {
+             scan->sock = pi.sock;
+             traceEvent(TRACE_INFO, "Rx PEER_INFO for %s: is at %s",
+diff -uNr a/src/n2n.c b/src/n2n.c
+--- a/src/n2n.c	2020-08-12 18:18:14.000000000 +0800
++++ b/src/n2n.c	2020-10-05 21:35:16.299315861 +0800
+@@ -22,7 +22,7 @@
+ 
+ #include <assert.h>
+ 
+-
++#define PURGE_MACS_FREQUENCY           70
+ static const uint8_t broadcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+ static const uint8_t multicast_addr[6] = { 0x01, 0x00, 0x5E, 0x00, 0x00, 0x00 }; /* First 3 bytes are meaningful */
+ static const uint8_t ipv6_multicast_addr[6] = { 0x33, 0x33, 0x00, 0x00, 0x00, 0x00 }; /* First 2 bytes are meaningful */
+@@ -255,6 +255,25 @@
+          GIT_RELEASE, PACKAGE_OSNAME, PACKAGE_BUILDDATE);
+ }
+ 
++/* *********************************************** */
++
++size_t purge_expired_macs(struct mac_info ** macs, time_t* p_last_purge) {
++  time_t now = time(NULL);
++  size_t num_reg = 0;
++
++  if((now - (*p_last_purge)) < PURGE_MACS_FREQUENCY) return 0;
++
++  traceEvent(TRACE_DEBUG, "Purging old macs");
++
++  // TODO
++  //num_reg = purge_peer_list(peer_list, now-REGISTRATION_TIMEOUT);
++
++  (*p_last_purge) = now;
++  traceEvent(TRACE_DEBUG, "Remove %ld macs", num_reg);
++
++  return num_reg;
++}
++
+ /* *********************************************** */ 
+ 
+ size_t purge_expired_registrations(struct peer_info ** peer_list, time_t* p_last_purge) {
+diff -uNr a/src/sn_utils.c b/src/sn_utils.c
+--- a/src/sn_utils.c	2020-08-12 18:18:14.000000000 +0800
++++ b/src/sn_utils.c	2020-10-05 21:59:16.965503046 +0800
+@@ -81,11 +81,14 @@
+ 		       const uint8_t * pktbuf,
+ 		       size_t pktsize)
+ {
+-  struct peer_info *  scan;
++  struct peer_info   *scan;
++  struct mac_info    *m_info;
+   macstr_t            mac_buf;
+   n2n_sock_str_t      sockbuf;
+ 
+-  HASH_FIND_PEER(comm->edges, dstMac, scan);
++  HASH_FIND_MAC(comm->macs, dstMac, m_info);
++
++  scan = m_info ? m_info->peer : NULL;
+ 
+   if(NULL != scan)
+     {
+@@ -98,7 +101,7 @@
+ 	  traceEvent(TRACE_DEBUG, "unicast %lu to [%s] %s",
+ 		     pktsize,
+ 		     sock_to_cstr(sockbuf, &(scan->sock)),
+-		     macaddr_str(mac_buf, scan->mac_addr));
++		     macaddr_str(mac_buf, dstMac));
+         }
+       else
+         {
+@@ -106,13 +109,14 @@
+ 	  traceEvent(TRACE_ERROR, "unicast %lu to [%s] %s FAILED (%d: %s)",
+ 		     pktsize,
+ 		     sock_to_cstr(sockbuf, &(scan->sock)),
+-		     macaddr_str(mac_buf, scan->mac_addr),
++		     macaddr_str(mac_buf, dstMac),
+ 		     errno, strerror(errno));
+         }
+     }
+   else
+     {
+-      traceEvent(TRACE_DEBUG, "try_forward unknown MAC");
++      traceEvent(TRACE_INFO, "try_forward unknown MAC: %s",
++	  macaddr_str(mac_buf, dstMac));
+ 
+       /* Not a known MAC so drop. */
+       return(-2);
+@@ -121,6 +125,24 @@
+   return(0);
+ }
+ 
++/* Find a known peer by a socket */
++static struct peer_info* find_peer_by_sock(struct sn_community *comm, const n2n_sock_t *sock) {
++  struct peer_info *scan, *tmp;
++
++  /* NOTE: linear search, could be optimized by using an additional hash table */
++  HASH_ITER(hh, comm->edges, scan, tmp) {
++    n2n_sock_t *s = &scan->sock;
++
++    if((s->port == sock->port) &&
++       (s->family == sock->family) &&
++       (!memcmp(&s->addr, &sock->addr, sizeof(sock->addr)))) {
++      return(scan);
++    }
++  }
++
++  return(NULL);
++}
++
+ /** Send a datagram to the destination embodied in a n2n_sock_t.
+  *
+  *  @return -1 on error otherwise number of bytes sent
+@@ -278,7 +300,7 @@
+                macaddr_str(mac_buf, edgeMac),
+                sock_to_cstr(sockbuf, sender_sock));
+ 
+-    HASH_FIND_PEER(comm->edges, edgeMac, scan);
++    HASH_FIND_MAC(comm->edges, edgeMac, scan);
+ 
+     if (NULL == scan)
+     {
+@@ -291,7 +313,7 @@
+         memcpy(&(scan->sock), sender_sock, sizeof(n2n_sock_t));
+         scan->last_valid_time_stamp = initial_time_stamp ();
+ 
+-        HASH_ADD_PEER(comm->edges, scan);
++        HASH_ADD_MAC(comm->edges, scan);
+ 
+         traceEvent(TRACE_INFO, "update_edge created   %s ==> %s",
+                    macaddr_str(mac_buf, edgeMac),
+@@ -333,7 +355,7 @@
+ 
+   if(!from_supernode) {
+     struct peer_info *edge;
+-    HASH_FIND_PEER(edges, mac, edge);
++    HASH_FIND_MAC(edges, mac, edge);
+     if(edge) {
+       // time_stamp_verify_and_update allows the pointer a previous stamp to be NULL
+       // if it is a (so far) unknown edge
+@@ -357,6 +379,7 @@
+   traceEvent(TRACE_DEBUG, "Purging old communities and edges");
+ 
+   HASH_ITER(hh, sss->communities, comm, tmp) {
++    //purge_expired_macs(&comm->macs, &last_purge_macs);
+     num_reg += purge_peer_list(&comm->edges, now - REGISTRATION_TIMEOUT);
+     if ((comm->edges == NULL) && (!sss->lock_communities)) {
+       traceEvent(TRACE_INFO, "Purging idle community %s", comm->community);
+@@ -639,10 +662,13 @@
+      * different size due to addition of the socket.*/
+     n2n_PACKET_t                    pkt;
+     n2n_common_t                    cmn2;
++    mac_info_t                      *src_minfo;
+     uint8_t                         encbuf[N2N_SN_PKTBUF_SIZE];
+     size_t                          encx=0;
+     int                             unicast; /* non-zero if unicast */
+     uint8_t *                       rec_buf; /* either udp_buf or encbuf */
++    uint8_t *                       payload;
++    u_int16_t                       psize;
+ 
+     if(!comm) {
+       traceEvent(TRACE_DEBUG, "process_udp PACKET with unknown community %s", cmn.community);
+@@ -651,6 +677,8 @@
+ 
+     sss->stats.last_fwd=now;
+     decode_PACKET(&pkt, &cmn, udp_buf, &rem, &idx);
++    payload = udp_buf + idx;
++    psize = udp_size - idx;
+ 
+     // already checked for valid comm
+     if(comm->header_encryption == HEADER_ENCRYPTION_ENABLED) {
+@@ -685,7 +713,7 @@
+       uint16_t oldEncx = encx;
+ 
+       /* Copy the original payload unchanged */
+-      encode_buf(encbuf, &encx, (udp_buf + idx), (udp_size - idx));
++      encode_buf(encbuf, &encx, payload, psize);
+ 
+       if (comm->header_encryption == HEADER_ENCRYPTION_ENABLED)
+         packet_header_encrypt (rec_buf, oldEncx, comm->header_encryption_ctx,
+@@ -707,6 +735,33 @@
+                                              time_stamp (), pearson_hash_16 (rec_buf, udp_size));
+     }
+ 
++    HASH_FIND_MAC(comm->macs, pkt.srcMac, src_minfo);
++
++    if(!src_minfo) {
++      /* New MAC detected, need to bind it to the sending peer */
++      struct peer_info *peer = find_peer_by_sock(comm, &pkt.sock);
++
++      if(peer) {
++        /* Learn new MAC */
++        src_minfo = (mac_info_t*) calloc(1, sizeof(mac_info_t));
++
++        memcpy(src_minfo->mac_addr, payload, sizeof(n2n_mac_t));
++        src_minfo->peer = peer;
++
++        HASH_ADD_MAC(comm->macs, src_minfo);
++
++        traceEvent(TRACE_DEBUG, "Learn new MAC: %s via %s",
++                  macaddr_str(mac_buf, src_minfo->mac_addr),
++                  sock_to_cstr(sockbuf, &pkt.sock));
++      } else {
++        traceEvent(TRACE_DEBUG, "Could not determine peer for %s",
++                  sock_to_cstr(sockbuf, &pkt.sock));
++      }
++    }
++
++    if(src_minfo)
++      src_minfo->last_seen = now;
++
+     /* Common section to forward the final product. */
+     if(unicast)
+       try_forward(sss, comm, &cmn, pkt.dstMac, rec_buf, encx);
+@@ -896,7 +951,7 @@
+                 macaddr_str( mac_buf2, query.targetMac ) );
+ 
+     struct peer_info *scan;
+-    HASH_FIND_PEER(comm->edges, query.targetMac, scan);
++    HASH_FIND_MAC(comm->edges, query.targetMac, scan);
+ 
+     if (scan) {
+       cmn2.ttl = N2N_DEFAULT_TTL;
+@@ -942,6 +997,7 @@
+     uint8_t pktbuf[N2N_SN_PKTBUF_SIZE];
+     time_t last_purge_edges = 0;
+     time_t last_sort_communities = 0;
++    time_t last_purge_macs = 0;
+ 
+     sss->start_time = time(NULL);
+ 
