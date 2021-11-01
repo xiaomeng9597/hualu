@@ -1,0 +1,13 @@
+--- a/lib/blkid/probe.c
++++ b/lib/blkid/probe.c
+@@ -1504,8 +1504,8 @@
+   { "ocfs2",	 4,	 0,  6,	"OCFSV2",		probe_ocfs2 },
+   { "ocfs2",	 8,	 0,  6,	"OCFSV2",		probe_ocfs2 },
+   { "crypt_LUKS", 0,	 0,  6,	"LUKS\xba\xbe",		probe_luks },
+-  { "squashfs",	 0,	 0,  4,	"sqsh",			0 },
+-  { "squashfs",	 0,	 0,  4,	"hsqs",			0 },
++  { "squashfs",	 0,	 0,  2,	"tini",			0 },
++  { "squashfs",	 0,	 0,  2,	"init",			0 },
+   { "lvm2pv",	 0,  0x218,  8, "LVM2 001",		probe_lvm2 },
+   { "lvm2pv",	 0,  0x018,  8, "LVM2 001",		probe_lvm2 },
+   { "lvm2pv",	 1,  0x018,  8, "LVM2 001",		probe_lvm2 },

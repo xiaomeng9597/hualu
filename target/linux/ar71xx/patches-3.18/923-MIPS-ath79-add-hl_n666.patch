@@ -1,0 +1,36 @@
+--- a/arch/mips/ath79/Kconfig
++++ b/arch/mips/ath79/Kconfig
+@@ -1481,6 +1481,16 @@
+ 	select ATH79_DEV_USB
+ 	select ATH79_DEV_WMAC
+ 
++config ATH79_MACH_HL_N666
++	bool "HUALU HL-N666 support"
++	select SOC_AR933X
++	select ATH79_DEV_ETH
++	select ATH79_DEV_GPIO_BUTTONS
++	select ATH79_DEV_LEDS_GPIO
++	select ATH79_DEV_M25P80
++	select ATH79_DEV_USB
++	select ATH79_DEV_WMAC
++
+ endmenu
+ 
+ config SOC_AR71XX
+--- a/arch/mips/ath79/Makefile
++++ b/arch/mips/ath79/Makefile
+@@ -186,3 +186,4 @@
+ obj-$(CONFIG_ATH79_MACH_CARAMBOLA2)	+= mach-carambola2.o
+ obj-$(CONFIG_ATH79_MACH_NBG6716)	+= mach-nbg6716.o
+ obj-$(CONFIG_ATH79_MACH_TS_D084)		+= mach-ts-d084.o
++obj-$(CONFIG_ATH79_MACH_HL_N666)		+= mach-hl-n666.o
+--- a/arch/mips/ath79/machtypes.h
++++ b/arch/mips/ath79/machtypes.h
+@@ -238,6 +238,7 @@
+ 	ATH79_MACH_ZCN_1523H_5,		/* Zcomax ZCN-1523H-5-xx */
+ 	ATH79_MACH_TS_D084,			/* PISEN TS-D084 */
+     ATH79_MACH_GL_AR300M_LITE,		/* GL-AR300M-lite */
++	ATH79_MACH_HL_N666,			/* HUALU HL-N666 */
+ };
+ 
+ #endif /* _ATH79_MACHTYPE_H */

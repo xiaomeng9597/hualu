@@ -1,0 +1,40 @@
+[ "$DEVTYPE" != "partition" ]&&exit 1
+case "$ACTION" in
+	add)
+	disk_size="$(cat /sys$DEVPATH/size)"
+	[ "$disk_size" -ge "262144" ]||exit 2
+    diskid="$(which blkid)"||diskid="$(which block) info"
+	eval $($diskid|awk -F': ' '$1~/'$DEVNAME'$/{print $2}') 2>/dev/null
+	[ "${#UUID}" = "0" -a "$TYPE" != "swap" ]&&exit 3
+	suuid="$(echo -n "$UUID"|cksum)"
+	gzpath="/mnt/$suuid"
+	 [ -d "$gzpath" ]||mkdir $gzpath
+	 	case "$TYPE" in
+			'ext3')mount -t "$TYPE" -o "noatime,barrier=0,data=writeback,commit=60" "/dev/$DEVNAME" "$gzpath" 2>/dev/null
+				;;
+			'ext4')mount -t "$TYPE" -o "noatime,journal_async_commit,nodelalloc,data=writeback,barrier=0,commit=60" "/dev/$DEVNAME" "$gzpath" 2>/dev/null
+				options="noatime,journal_async_commit,nodelalloc,data=writeback,barrier=0,commit=60";;
+			'ntfs')
+                [ -e /lib/modules/*/antfs.ko ]&&TYPE="antfs"||TYPE="ntfs-3g"
+                mount -t "$TYPE" -o "noatime,nls=utf8,big_writes,async" "/dev/$DEVNAME" "$gzpath" 2>/dev/null
+                ;;
+			'vfat')mount -t "$TYPE" -o "utf8=1,umask=0000,dmask=0000,fmask=0000" "/dev/$DEVNAME" "$gzpath" 2>/dev/null
+				;;
+			'exfat')mount -t "$TYPE" -o "uhelper=udisks2,nodev,nosuid,uid=1001,gid=1001,iocharset=utf8,namecase=0,errors=remount-ro,umask=0077" "/dev/$DEVNAME" "$gzpath" 2>/dev/null
+				;;
+			'swap')
+				swapon /dev/$DEVNAME 2>/dev/null
+				;;
+				*)
+				exit 4
+				;;
+		esac
+	;;
+	remove)
+    [ "$TYPE" = "swap" ]&& swapoff /dev/$DEVNAME 2>/dev/null||{
+	umount "/dev/$DEVNAME" 2>/dev/null
+	unpath="$(df -h|awk '$1=="/dev/'$DEVNAME'"{print $6}')"
+	umount "$unpath" 2>/dev/null
+    }
+	;;
+esac

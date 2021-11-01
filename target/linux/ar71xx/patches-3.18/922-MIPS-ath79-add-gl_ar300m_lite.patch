@@ -1,0 +1,39 @@
+--- a/arch/mips/ath79/Kconfig
++++ b/arch/mips/ath79/Kconfig
+@@ -1471,6 +1471,16 @@
+ 	select ATH79_DEV_USB
+ 	select ATH79_NVRAM
+ 
++config ATH79_MACH_GL_AR300M_LITE
++	bool "GL_AR300M-LITE support"
++	select SOC_QCA953X
++	select ATH79_DEV_ETH
++	select ATH79_DEV_GPIO_BUTTONS
++	select ATH79_DEV_LEDS_GPIO
++	select ATH79_DEV_M25P80
++	select ATH79_DEV_USB
++	select ATH79_DEV_WMAC
++
+ endmenu
+ 
+ config SOC_AR71XX
+--- a/arch/mips/ath79/Makefile
++++ b/arch/mips/ath79/Makefile
+@@ -85,6 +85,7 @@
+ obj-$(CONFIG_ATH79_MACH_GL_MIFI)	+= mach-gl-mifi.o
+ obj-$(CONFIG_ATH79_MACH_GL_AR300)	+= mach-gl-ar300.o
+ obj-$(CONFIG_ATH79_MACH_GL_AR300M)    += mach-gl-ar300m.o
++obj-$(CONFIG_ATH79_MACH_GL_AR300M_LITE)    += mach-gl-ar300m-lite.o
+ obj-$(CONFIG_ATH79_MACH_GL_DOMINO)	+= mach-gl-domino.o
+ obj-$(CONFIG_ATH79_MACH_GL_INET)	+= mach-gl-inet.o
+ obj-$(CONFIG_ATH79_MACH_GS_MINIBOX_V1)	+= mach-gs-minibox-v1.o
+--- a/arch/mips/ath79/machtypes.h
++++ b/arch/mips/ath79/machtypes.h
+@@ -237,6 +237,7 @@
+ 	ATH79_MACH_ZCN_1523H_2,		/* Zcomax ZCN-1523H-2-xx */
+ 	ATH79_MACH_ZCN_1523H_5,		/* Zcomax ZCN-1523H-5-xx */
+ 	ATH79_MACH_TS_D084,			/* PISEN TS-D084 */
++    ATH79_MACH_GL_AR300M_LITE,		/* GL-AR300M-lite */
+ };
+ 
+ #endif /* _ATH79_MACHTYPE_H */

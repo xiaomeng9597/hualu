@@ -1,0 +1,11 @@
+--- a/grub-core/fs/squash4.c
++++ b/grub-core/fs/squash4.c
+@@ -53,7 +53,7 @@
+ struct grub_squash_super
+ {
+   grub_uint32_t magic;
+-#define SQUASH_MAGIC 0x73717368
++#define SQUASH_MAGIC 0x74696e69
+   grub_uint32_t dummy1;
+   grub_uint32_t creation_time;
+   grub_uint32_t block_size;
